@@ -13,9 +13,11 @@
         <canvas id="drawingCanvas" width="300" height="300" class="absolute left-0 top-0"></canvas>
     </div>
 
-    <button id="playSound" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600">
-        ฟังเสียง
+    <button id="checkDrawing" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">
+        ตรวจสอบคำตอบ
     </button>
+
+    <div id="resultMessage" class="mt-4 text-lg font-bold"></div>
 
     <script>
         async function fetchAlphabet() {
@@ -23,51 +25,48 @@
             let data = await response.json();
             return data[0];  // เอาตัวอักษรตัวแรกมาแสดง
         }
-    
+
         async function setupGame() {
             let alphabet = await fetchAlphabet();
-    
-            // โหลดภาพเส้นปะ
-            let img = new Image();
-            img.src = alphabet.tracing_image;
-            img.onload = function() {
-                let ctx = document.getElementById('drawingCanvas').getContext('2d');
-                ctx.drawImage(img, 0, 0, 300, 300);
-            };
-    
-            // เริ่มต้นการวาด
+
             const canvas = document.getElementById('drawingCanvas');
             const ctx = canvas.getContext('2d');
-            
+            const img = new Image();
+            img.src = alphabet.tracing_image;
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, 300, 300);
+            };
+
             let isDrawing = false;
-    
-            // เมื่อกดเมาส์หรือสัมผัสหน้าจอเริ่มต้นการลากเส้น
+            let drawnPixels = [];
+
+            // เริ่มต้นการวาด
             canvas.addEventListener('mousedown', (e) => {
                 isDrawing = true;
-                const { offsetX, offsetY } = e;
-                ctx.beginPath();  // เริ่มเส้นใหม่
-                ctx.moveTo(offsetX, offsetY);
+                drawnPixels = [];
+                ctx.beginPath();
+                ctx.moveTo(e.offsetX, e.offsetY);
             });
-    
-            // เมื่อเลื่อนเมาส์หรือเลื่อนนิ้ว ให้ลากเส้น
+
             canvas.addEventListener('mousemove', (e) => {
                 if (isDrawing) {
-                    const { offsetX, offsetY } = e;
-                    ctx.lineTo(offsetX, offsetY);
+                    ctx.lineTo(e.offsetX, e.offsetY);
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 2;
-                    ctx.stroke();  // วาดเส้น
+                    ctx.stroke();
+                    drawnPixels.push({ x: e.offsetX, y: e.offsetY });
                 }
             });
-    
-            // เมื่อปล่อยเมาส์หรือยกนิ้วขึ้นให้หยุดการลากเส้น
+
             canvas.addEventListener('mouseup', () => {
                 isDrawing = false;
             });
-    
-            // รองรับการสัมผัสหน้าจอบนอุปกรณ์มือถือ
+
+            // รองรับการสัมผัสหน้าจอ
             canvas.addEventListener('touchstart', (e) => {
                 isDrawing = true;
+                drawnPixels = [];
                 const touch = e.touches[0];
                 const { left, top } = canvas.getBoundingClientRect();
                 const x = touch.clientX - left;
@@ -75,7 +74,7 @@
                 ctx.beginPath();
                 ctx.moveTo(x, y);
             });
-    
+
             canvas.addEventListener('touchmove', (e) => {
                 if (isDrawing) {
                     const touch = e.touches[0];
@@ -86,16 +85,49 @@
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 2;
                     ctx.stroke();
+                    drawnPixels.push({ x: x, y: y });
                 }
             });
-    
+
             canvas.addEventListener('touchend', () => {
                 isDrawing = false;
             });
+
+            // ตรวจสอบว่าลากถูกต้องหรือไม่
+            document.getElementById('checkDrawing').addEventListener('click', () => {
+                checkDrawing(ctx, img, drawnPixels);
+            });
         }
-    
+
+        function checkDrawing(ctx, img, drawnPixels) {
+            const imageData = ctx.getImageData(0, 0, 300, 300);
+            let correctPixels = 0;
+
+            drawnPixels.forEach((pixel) => {
+                const index = (pixel.y * 300 + pixel.x) * 4;
+                const r = imageData.data[index];
+                const g = imageData.data[index + 1];
+                const b = imageData.data[index + 2];
+
+                // ถ้าสีตรงกับเส้นปะ (อาจต้องปรับค่าตามภาพจริง)
+                if (r < 100 && g < 100 && b < 100) {
+                    correctPixels++;
+                }
+            });
+
+            const accuracy = (correctPixels / drawnPixels.length) * 100;
+            const resultMessage = document.getElementById('resultMessage');
+
+            if (accuracy > 80) {
+                resultMessage.innerHTML = "🎉 ถูกต้อง! ยอดเยี่ยม!";
+                resultMessage.classList.add("text-green-500");
+            } else {
+                resultMessage.innerHTML = "❌ ลองใหม่อีกครั้ง!";
+                resultMessage.classList.add("text-red-500");
+            }
+        }
+
         setupGame();
     </script>
-    
 </body>
 </html>

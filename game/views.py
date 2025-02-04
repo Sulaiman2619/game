@@ -10,3 +10,6 @@ class AlphabetViewSet(viewsets.ModelViewSet):
 
 def index(request):
     return render(request, 'index.html')
+
+def learn_letters(request):
+    return render(request, 'learn.html')

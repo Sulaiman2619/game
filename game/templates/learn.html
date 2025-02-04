@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ฝึกอ่านตัวอักษร</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+    <h2 class="text-2xl font-bold text-gray-700">ฝึกอ่านตัวอักษร</h2>
+
+    <!-- แสดงตัวอักษร -->
+    <div id="letterDisplay" class="text-9xl font-bold text-blue-600 mt-4"></div>
+
+    <!-- ปุ่มเล่นเสียง -->
+    <button id="playSound" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600">
+        ฟังเสียง
+    </button>
+
+    <!-- ปุ่มไปยังตัวอักษรถัดไป -->
+    <button id="nextLetter" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">
+        ตัวอักษรถัดไป
+    </button>
+
+    <script>
+        let alphabetData = [];
+        let currentIndex = 0;
+
+        async function fetchAlphabet() {
+            let response = await fetch('/api/alphabets/');
+            alphabetData = await response.json();
+            showLetter();
+        }
+
+        function showLetter() {
+            if (alphabetData.length > 0) {
+                let letterInfo = alphabetData[currentIndex];
+                document.getElementById("letterDisplay").innerText = letterInfo.letter;
+            }
+        }
+
+        document.getElementById('playSound').addEventListener('click', () => {
+            let letterInfo = alphabetData[currentIndex];
+            if (letterInfo.pronunciation_audio) {
+                let audio = new Audio(`/media/${letterInfo.pronunciation_audio}`);
+                audio.play();
+            } else {
+                alert("ยังไม่มีไฟล์เสียงสำหรับตัวอักษรนี้");
+            }
+        });
+
+        document.getElementById('nextLetter').addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % alphabetData.length;
+            showLetter();
+        });
+
+        fetchAlphabet();
+    </script>
+</body>
+</html>

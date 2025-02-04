@@ -9,5 +9,6 @@ router.register(r'alphabets', AlphabetViewSet, basename='alphabet')
 urlpatterns = [
     path('api/', include(router.urls)),  # ใช้ router สำหรับ API
     path('', index, name='home'),  # แสดงหน้า index.html
+    path('learn/', learn_letters, name='learn'),
 
 ]
