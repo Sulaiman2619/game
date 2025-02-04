@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมฝึกเขียนตัวอักษร</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+    <h2 class="text-2xl font-bold text-gray-700">ลากเส้นตามตัวอักษร</h2>
+
+    <div class="relative w-80 h-80 bg-white border-2 border-gray-700 mt-4">
+        <canvas id="drawingCanvas" width="300" height="300" class="absolute left-0 top-0"></canvas>
+    </div>
+
+    <button id="playSound" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600">
+        ฟังเสียง
+    </button>
+
+    <script>
+        async function fetchAlphabet() {
+            let response = await fetch('/api/alphabets/');
+            let data = await response.json();
+            return data[0];  // เอาตัวอักษรตัวแรกมาแสดง
+        }
+    
+        async function setupGame() {
+            let alphabet = await fetchAlphabet();
+    
+            // โหลดภาพเส้นปะ
+            let img = new Image();
+            img.src = alphabet.tracing_image;
+            img.onload = function() {
+                let ctx = document.getElementById('drawingCanvas').getContext('2d');
+                ctx.drawImage(img, 0, 0, 300, 300);
+            };
+    
+            // เริ่มต้นการวาด
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            let isDrawing = false;
+    
+            // เมื่อกดเมาส์หรือสัมผัสหน้าจอเริ่มต้นการลากเส้น
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const { offsetX, offsetY } = e;
+                ctx.beginPath();  // เริ่มเส้นใหม่
+                ctx.moveTo(offsetX, offsetY);
+            });
+    
+            // เมื่อเลื่อนเมาส์หรือเลื่อนนิ้ว ให้ลากเส้น
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDrawing) {
+                    const { offsetX, offsetY } = e;
+                    ctx.lineTo(offsetX, offsetY);
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();  // วาดเส้น
+                }
+            });
+    
+            // เมื่อปล่อยเมาส์หรือยกนิ้วขึ้นให้หยุดการลากเส้น
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+    
+            // รองรับการสัมผัสหน้าจอบนอุปกรณ์มือถือ
+            canvas.addEventListener('touchstart', (e) => {
+                isDrawing = true;
+                const touch = e.touches[0];
+                const { left, top } = canvas.getBoundingClientRect();
+                const x = touch.clientX - left;
+                const y = touch.clientY - top;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            });
+    
+            canvas.addEventListener('touchmove', (e) => {
+                if (isDrawing) {
+                    const touch = e.touches[0];
+                    const { left, top } = canvas.getBoundingClientRect();
+                    const x = touch.clientX - left;
+                    const y = touch.clientY - top;
+                    ctx.lineTo(x, y);
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+    
+            canvas.addEventListener('touchend', () => {
+                isDrawing = false;
+            });
+        }
+    
+        setupGame();
+    </script>
+    
+</body>
+</html>
