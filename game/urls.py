@@ -10,5 +10,6 @@ urlpatterns = [
     path('api/', include(router.urls)),  # ใช้ router สำหรับ API
     path('', index, name='home'),  # แสดงหน้า index.html
     path('learn/', learn_letters, name='learn'),
+    path("api/upload_audio/", upload_audio, name="upload_audio"),
 
 ]

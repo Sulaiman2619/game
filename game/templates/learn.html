@@ -1,57 +1,142 @@
+{% load static tailwind_tags %}
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ฝึกอ่านตัวอักษร</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {% tailwind_css %}
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
     <h2 class="text-2xl font-bold text-gray-700">ฝึกอ่านตัวอักษร</h2>
 
     <!-- แสดงตัวอักษร -->
-    <div id="letterDisplay" class="text-9xl font-bold text-blue-600 mt-4"></div>
+    <div id="letterDisplay" class="text-9xl font-bold text-blue-600  cursor-pointer"></div>
 
-    <!-- ปุ่มเล่นเสียง -->
-    <button id="playSound" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600">
-        ฟังเสียง
+    <button id="recordButton" class="mt-10 px-4 py-2 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600">
+        🔴 บันทึกเสียง
     </button>
 
     <!-- ปุ่มไปยังตัวอักษรถัดไป -->
-    <button id="nextLetter" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">
-        ตัวอักษรถัดไป
-    </button>
+    <div class="flex justify-end w-[80%] 2xl:w-[50%]">
+        <button id="nextLetter" class="mt-10 px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">
+            ตัวอักษรถัดไป
+        </button>
+    </div>
 
     <script>
         let alphabetData = [];
         let currentIndex = 0;
+        let mediaRecorder; // เพิ่มตัวแปร global
+        let audioChunks = []; // เพิ่มตัวแปร global
 
         async function fetchAlphabet() {
-            let response = await fetch('/api/alphabets/');
-            alphabetData = await response.json();
-            showLetter();
+            try {
+                let response = await fetch('/api/alphabets/');
+                if (!response.ok) throw new Error("โหลดข้อมูลตัวอักษรล้มเหลว");
+                alphabetData = await response.json();
+                if (alphabetData.length > 0) {
+                    showLetter();
+                } else {
+                    alert("ไม่มีตัวอักษรในระบบ");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+            }
         }
 
         function showLetter() {
             if (alphabetData.length > 0) {
                 let letterInfo = alphabetData[currentIndex];
-                document.getElementById("letterDisplay").innerText = letterInfo.letter;
+                let letterElement = document.getElementById("letterDisplay");
+                letterElement.innerText = letterInfo.letter;
             }
         }
 
-        document.getElementById('playSound').addEventListener('click', () => {
+        function playSound() {
+            if (alphabetData.length === 0) return;
             let letterInfo = alphabetData[currentIndex];
-            if (letterInfo.pronunciation_audio) {
-                let audio = new Audio(`/media/${letterInfo.pronunciation_audio}`);
-                audio.play();
-            } else {
-                alert("ยังไม่มีไฟล์เสียงสำหรับตัวอักษรนี้");
-            }
-        });
 
-        document.getElementById('nextLetter').addEventListener('click', () => {
+            let audioUrl = letterInfo.pronunciation_audio;
+
+            // ตรวจสอบว่า audioUrl เป็น URL เต็มหรือเป็น path
+            if (!audioUrl.startsWith("http")) {
+                audioUrl = `/media/${audioUrl}`;
+            }
+
+            console.log("เสียงที่กำลังเล่น:", audioUrl);
+
+            let audio = new Audio(audioUrl);
+            audio.play().catch(error => console.error("เล่นเสียงล้มเหลว:", error));
+        }
+
+        async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append("audio", audioBlob, "recording.webm");
+                formData.append("letter_id", alphabetData[currentIndex].id);  // ส่ง letter_id ไปด้วย
+
+                try {
+                    let response = await fetch("/api/upload_audio/", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    let result = await response.json();
+                    if (result.similarity !== undefined) {
+                        alert(`ความคล้ายคลึงกัน: ${result.similarity}`);
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error("อัปโหลดเสียงล้มเหลว:", error);
+                    alert("เกิดข้อผิดพลาดในการอัปโหลดเสียง");
+                }
+
+                document.getElementById("recordButton").innerText = "🔴 บันทึกเสียง";
+            };
+
+            mediaRecorder.start();
+            document.getElementById("recordButton").innerText = "⏹ หยุดบันทึก";
+        } catch (error) {
+            console.error("ไม่สามารถเข้าถึงไมโครโฟน:", error);
+            alert("กรุณาอนุญาตให้ใช้ไมโครโฟน");
+        }
+    }
+
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+        }
+
+        document.getElementById("letterDisplay").addEventListener("click", playSound);
+
+        document.getElementById("nextLetter").addEventListener("click", () => {
+            if (alphabetData.length === 0) return;
             currentIndex = (currentIndex + 1) % alphabetData.length;
             showLetter();
+        });
+
+        document.getElementById("recordButton").addEventListener("click", () => {
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                startRecording();
+            } else {
+                stopRecording();
+            }
         });
 
         fetchAlphabet();

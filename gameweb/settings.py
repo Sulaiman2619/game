@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'theme',  # แอปที่ใช้สำหรับเก็บ Tailwind CSS
     'django_browser_reload',
     'rest_framework',  # ✅ ต้องมี DRF
-
     'game',
 ]
 
