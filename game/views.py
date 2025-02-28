@@ -12,6 +12,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
+import traceback  # ใช้สำหรับ debug error
+from pydub import AudioSegment
+
+# Function to convert .webm to .wav
+def convert_webm_to_wav(webm_file_path):
+    audio = AudioSegment.from_file(webm_file_path, format="webm")
+    wav_file_path = webm_file_path.replace(".webm", ".wav")
+    audio.export(wav_file_path, format="wav")
+    return wav_file_path
 
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-base")
 model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
@@ -28,69 +37,97 @@ def learn_letters(request):
     return render(request, 'learn.html')
 
 
+def resample_audio(input_path, output_path, target_sample_rate=16000):
+    """Resample the audio to the target sample rate."""
+    # Load the audio using pydub
+    audio = AudioSegment.from_wav(input_path)
+    
+    # Resample the audio to the target sample rate
+    audio = audio.set_frame_rate(target_sample_rate)
+    
+    # Export the resampled audio to a new file
+    audio.export(output_path, format="wav")
+
 def get_embedding(audio_path):
-    audio, sample_rate = sf.read(audio_path)
+    # First, resample the audio to 16kHz if needed
+    resampled_audio_path = audio_path.replace(".wav", "_resampled.wav")
+    resample_audio(audio_path, resampled_audio_path)
+    
+    # Now load the resampled audio file
+    audio, sample_rate = sf.read(resampled_audio_path)
+    
+    # Proceed with feature extraction and model inference
     inputs = feature_extractor(audio, sampling_rate=sample_rate, return_tensors="pt")
     outputs = model(**inputs)
     return outputs.last_hidden_state.mean(dim=1).squeeze().detach()
 
+
 @csrf_exempt
 def upload_audio(request):
     if request.method == "POST" and request.FILES.get("audio"):
-        audio_file = request.FILES["audio"]
-        
-        # บันทึกไฟล์ลงใน media/temp_audio
-        file_path = f"media/temp_audio/{audio_file.name}"
-        full_path = default_storage.save(file_path, ContentFile(audio_file.read()))
-        
         try:
-            # ดึงข้อมูลตัวอักษรที่ผู้ใช้เลือกจาก request.POST
-            letter_id = request.POST.get('letter_id')  # ตัวอักษรที่เลือก
-            letter = Alphabet.objects.get(id=letter_id)
-            correct_audio_path = letter.pronunciation_audio.path  # เสียงที่ถูกต้องจากฐานข้อมูล
+            # อ่านไฟล์เสียงที่อัปโหลด
+            audio_file = request.FILES["audio"]
+            print(f"📂 Received audio file: {audio_file.name}")
 
-            # ดึง embedding จากไฟล์ที่อัปโหลดและไฟล์อ้างอิง
+            ## Ensure the 'temp_audio' directory exists in the media folder
+            temp_audio_dir = os.path.join('media', 'temp_audio')
+            if not os.path.exists(temp_audio_dir):
+                os.makedirs(temp_audio_dir)  # Create the directory if it doesn't exist
+
+            # บันทึกไฟล์ชั่วคราว
+            file_path = os.path.join(temp_audio_dir, audio_file.name)
+            full_path = default_storage.save(file_path, ContentFile(audio_file.read()))
+            print(f"✅ File saved: {full_path}")
+
+            # Get the absolute path to the saved file
+            absolute_file_path = default_storage.path(full_path)
+            print(f"📂 Absolute file path: {absolute_file_path}")
+
+            # แปลงไฟล์ .webm เป็น .wav หากเป็นไฟล์ .webm
+            if audio_file.name.endswith(".webm"):
+                wav_file_path = convert_webm_to_wav(absolute_file_path)
+                print(f"✅ Converted to .wav: {wav_file_path}")
+                full_path = wav_file_path  # ใช้ path ของไฟล์ .wav ที่แปลงแล้ว
+
+            # ดึงข้อมูลตัวอักษรที่ผู้ใช้เลือก
+            letter = request.POST.get("letter")
+            print(f"🔤 Letter: {letter}")
+
+            if not letter:
+                return JsonResponse({"error": "ไม่พบ letter_id"}, status=400)
+
+            letter = Alphabet.objects.get(letter=letter)
+            print(f"✅ Found letter: {letter.letter}")
+
+            correct_audio_path = letter.pronunciation_audio.path  # ดึงไฟล์เสียงที่ถูกต้อง
+            print(f"🎵 Correct pronunciation path: {correct_audio_path}")
+
+            # ตรวจสอบว่าไฟล์เสียงต้นฉบับมีอยู่หรือไม่
+            if not default_storage.exists(correct_audio_path):
+                return JsonResponse({"error": "ไม่พบไฟล์ต้นฉบับ"}, status=404)
+
+            # แปลงไฟล์เสียงเป็น embedding
             emb1 = get_embedding(full_path)
             emb2 = get_embedding(correct_audio_path)
-            
+
             # คำนวณความคล้ายคลึงกัน
             similarity = F.cosine_similarity(emb1.unsqueeze(0), emb2.unsqueeze(0)).item()
             similarity_percentage = round(similarity * 100, 2)
-            
-            # ลบไฟล์เสียงที่อัปโหลดหลังจากใช้งานเสร็จ
-            if default_storage.exists(full_path):
-                default_storage.delete(full_path)
+
+            print(f"📊 Similarity Score: {similarity_percentage}%")
+
+            # ลบไฟล์ที่อัปโหลดหลังจากใช้งาน
+            default_storage.delete(full_path)
 
             return JsonResponse({"similarity": similarity_percentage})
-        
+
         except Alphabet.DoesNotExist:
             return JsonResponse({"error": "ไม่พบตัวอักษรที่เลือก"}, status=400)
+
         except Exception as e:
+            print("❌ Error:", str(e))
+            traceback.print_exc()  # แสดง error แบบเต็มใน console
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
-
-# def upload_audio(request):
-#     if request.method == 'POST' and request.FILES.get('audio'):
-#         audio_file = request.FILES['audio']
-        
-#         # บันทึกไฟล์เสียงที่อัปโหลด
-#         file_path = default_storage.save(f"uploads/{audio_file.name}", ContentFile(audio_file.read()))
-
-#         # แปลงเป็น embedding
-#         try:
-#             user_embedding = get_embedding(default_storage.path(file_path))
-
-#             # โหลดเสียงต้นแบบเพื่อเปรียบเทียบ (เปลี่ยน path ตามเสียงต้นแบบที่คุณมี)
-#             reference_audio_path = "media/reference_audio.wav"
-#             reference_embedding = get_embedding(reference_audio_path)
-
-#             # คำนวณความคล้ายคลึงกัน
-#             similarity = F.cosine_similarity(user_embedding.unsqueeze(0), reference_embedding.unsqueeze(0))
-
-#             return JsonResponse({'message': 'อัปโหลดสำเร็จ', 'similarity': round(similarity.item(), 3)})
-
-#         except Exception as e:
-#             return JsonResponse({'error': str(e)}, status=500)
-
-#     return JsonResponse({'error': 'กรุณาอัปโหลดไฟล์เสียง'}, status=400)

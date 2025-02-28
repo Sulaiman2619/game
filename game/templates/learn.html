@@ -15,7 +15,7 @@
     <div id="letterDisplay" class="text-9xl font-bold text-blue-600  cursor-pointer"></div>
 
     <button id="recordButton" class="mt-10 px-4 py-2 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600">
-        🔴 บันทึกเสียง
+        🔴 อ่าน
     </button>
 
     <!-- ปุ่มไปยังตัวอักษรถัดไป -->
@@ -86,7 +86,9 @@
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 const formData = new FormData();
                 formData.append("audio", audioBlob, "recording.webm");
-                formData.append("letter_id", alphabetData[currentIndex].id);  // ส่ง letter_id ไปด้วย
+                formData.append("letter", alphabetData[currentIndex].letter);  // ส่ง letter_id ไปด้วย
+                console.log("letter:", alphabetData[currentIndex].letter);
+
 
                 try {
                     let response = await fetch("/api/upload_audio/", {
