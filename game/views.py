@@ -58,7 +58,10 @@ def get_embedding(audio_path):
     
     # Proceed with feature extraction and model inference
     inputs = feature_extractor(audio, sampling_rate=sample_rate, return_tensors="pt")
-    outputs = model(**inputs)
+    # Get the embeddings from the model
+    with torch.no_grad():
+        outputs = model(**inputs)
+        
     return outputs.last_hidden_state.mean(dim=1).squeeze().detach()
 
 
