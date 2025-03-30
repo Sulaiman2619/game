@@ -1,0 +1,14 @@
+{% load static tailwind_tags %}
+{% tailwind_css %}
+
+<!-- payment_popup.html -->
+<div id="payment-popup" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50 z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg max-w-2xl w-full">
+        <h2 class="text-4xl font-bold mb-4 text-center">Time to Pay for Subscription</h2>
+        <p class="mb-4 text-center text-2xl">Your free trial has expired. Please pay ฿99 for 30 days of subscription to continue.</p>
+        <form method="POST">
+            {% csrf_token %}
+            <button type="submit" name="start_subscription" class="bg-blue-500 text-white px-4 py-2 rounded-lg w-full text-2xl">Pay ฿99 and Subscribe</button>
+        </form>
+    </div>
+</div>

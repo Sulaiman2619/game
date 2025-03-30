@@ -1,0 +1,14 @@
+{% load static tailwind_tags %}
+{% tailwind_css %}
+
+<!-- trial_popup.html -->
+<div id="trial-popup" class="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50 z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <h2 class="text-2xl font-bold mb-4 text-center">Start Your Free 7-Day Trial!</h2>
+        <p class="mb-4 text-center">Enjoy a 7-day free trial of the content. After that, you will be charged ฿99 for 30 days of subscription.</p>
+        <form method="POST">
+            {% csrf_token %}
+            <button type="submit" name="start_trial" class="bg-green-500 text-white px-4 py-2 rounded-lg w-full">Start Free Trial</button>
+        </form>
+    </div>
+</div>

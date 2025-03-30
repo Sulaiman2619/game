@@ -1,133 +1,50 @@
+{% load static tailwind_tags %}
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>เกมฝึกเขียนตัวอักษร</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-    <h2 class="text-2xl font-bold text-gray-700">ลากเส้นตามตัวอักษร</h2>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 
-    <div class="relative w-80 h-80 bg-white border-2 border-gray-700 mt-4">
-        <canvas id="drawingCanvas" width="300" height="300" class="absolute left-0 top-0"></canvas>
+    <title>หน้าแรก</title>
+    {% load static %}
+    {% tailwind_css %}
+</head>
+<body class="max-w-screen-md object-center object-cover bg-no-repeat" style="background-image: url({% static 'img/bg.png' %});">
+    
+    <div class="flex flex-rows justify-between p-4 mt-2 mx-8">
+        <div class="">
+            <img class="w-12 min-h-12" src="{% static 'img/logo.jpg' %}" alt="">
+        </div>
+        <div class="bg-blue-300 rounded-full px-4 pt-3 text-base text-bold shadow-[0px_-5px_2px_-2px_#4367de]">
+            <a class="border-r-[3px] border-white pr-2 hover:cursor-pointer hover:text-gray-200" href="">(PARENT)</a>
+            <a class="border-r-[3px] border-white pr-2 hover:cursor-pointer hover:text-gray-200" href="">PROFILE</a>
+            <a class="border-r-[3px] border-white pr-2 hover:cursor-pointer hover:text-gray-200" href="">KID PROGRESSION</a>
+            <a class="border-r-[3px] border-white pr-2 hover:cursor-pointer hover:text-gray-200" href="">KID POINTS</a>
+            <a class="hover:cursor-pointer hover:text-gray-200" href="">STORY</a>
+        </div>
+        <div class="text-2xl bg-gray-100 rounded-full py-2 px-3">
+            <button><i class="fa-solid fa-gear"></i></button>
+        </div>
+    </div>
+    
+    <div class="absolute w-[36rem] ml-28 -mt-10">
+        <img src="{% static 'img/text.png' %}" alt="">
+    </div>
+    
+    <div class="flex flex-col gap-2 ml-4 mt-4 text-white text-lg text-bold">
+        <!-- Check if trial is active or not -->
+       
+        
+        <a class="w-1/3 py-2 px-2 bg-gradient-to-r from-red-500 to-red-800 transform hover:scale-105 transition-all duration-300 rounded-[10px]" style="clip-path: polygon(0 3%, 78% 1%, 100% 100%, 0% 96%);" href="{% url 'learn' %}">ฝึกการอ่านออกเสียง</a>
+        <a class="w-1/4 py-2 px-2 bg-gradient-to-r from-red-500 to-red-800 transform hover:scale-105 transition-all duration-300 rounded-[10px]" style="clip-path: polygon(0 3%, 87% 0, 100% 100%, 0 96%);" href="">ฝึกการเขียน</a>
+        <a class="w-1/3 py-2 px-2 bg-gradient-to-r from-red-500 to-red-800 transform hover:scale-105 transition-all duration-300 rounded-[10px]" style="clip-path: polygon(0 3%, 78% 1%, 100% 100%, 0% 96%);" href="">ขั้นตอนการละหมาด</a>
+        <form method="POST" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="w-1/5 py-2 px-2 bg-gradient-to-r from-red-500 to-red-800 transform hover:scale-105 transition-all duration-300 rounded-[10px]" style="clip-path: polygon(0 3%, 87% 0, 100% 100%, 0 96%);">ออกจากเกมส์</button>
+        </form>
     </div>
 
-    <button id="checkDrawing" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">
-        ตรวจสอบคำตอบ
-    </button>
-
-    <div id="resultMessage" class="mt-4 text-lg font-bold"></div>
-
-    <script>
-        async function fetchAlphabet() {
-            let response = await fetch('/api/alphabets/');
-            let data = await response.json();
-            return data[0];  // เอาตัวอักษรตัวแรกมาแสดง
-        }
-
-        async function setupGame() {
-            let alphabet = await fetchAlphabet();
-
-            const canvas = document.getElementById('drawingCanvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.src = alphabet.tracing_image;
-
-            img.onload = function() {
-                ctx.drawImage(img, 0, 0, 300, 300);
-            };
-
-            let isDrawing = false;
-            let drawnPixels = [];
-
-            // เริ่มต้นการวาด
-            canvas.addEventListener('mousedown', (e) => {
-                isDrawing = true;
-                drawnPixels = [];
-                ctx.beginPath();
-                ctx.moveTo(e.offsetX, e.offsetY);
-            });
-
-            canvas.addEventListener('mousemove', (e) => {
-                if (isDrawing) {
-                    ctx.lineTo(e.offsetX, e.offsetY);
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    drawnPixels.push({ x: e.offsetX, y: e.offsetY });
-                }
-            });
-
-            canvas.addEventListener('mouseup', () => {
-                isDrawing = false;
-            });
-
-            // รองรับการสัมผัสหน้าจอ
-            canvas.addEventListener('touchstart', (e) => {
-                isDrawing = true;
-                drawnPixels = [];
-                const touch = e.touches[0];
-                const { left, top } = canvas.getBoundingClientRect();
-                const x = touch.clientX - left;
-                const y = touch.clientY - top;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-            });
-
-            canvas.addEventListener('touchmove', (e) => {
-                if (isDrawing) {
-                    const touch = e.touches[0];
-                    const { left, top } = canvas.getBoundingClientRect();
-                    const x = touch.clientX - left;
-                    const y = touch.clientY - top;
-                    ctx.lineTo(x, y);
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    drawnPixels.push({ x: x, y: y });
-                }
-            });
-
-            canvas.addEventListener('touchend', () => {
-                isDrawing = false;
-            });
-
-            // ตรวจสอบว่าลากถูกต้องหรือไม่
-            document.getElementById('checkDrawing').addEventListener('click', () => {
-                checkDrawing(ctx, img, drawnPixels);
-            });
-        }
-
-        function checkDrawing(ctx, img, drawnPixels) {
-            const imageData = ctx.getImageData(0, 0, 300, 300);
-            let correctPixels = 0;
-
-            drawnPixels.forEach((pixel) => {
-                const index = (pixel.y * 300 + pixel.x) * 4;
-                const r = imageData.data[index];
-                const g = imageData.data[index + 1];
-                const b = imageData.data[index + 2];
-
-                // ถ้าสีตรงกับเส้นปะ (อาจต้องปรับค่าตามภาพจริง)
-                if (r < 100 && g < 100 && b < 100) {
-                    correctPixels++;
-                }
-            });
-
-            const accuracy = (correctPixels / drawnPixels.length) * 100;
-            const resultMessage = document.getElementById('resultMessage');
-
-            if (accuracy > 80) {
-                resultMessage.innerHTML = "🎉 ถูกต้อง! ยอดเยี่ยม!";
-                resultMessage.classList.add("text-green-500");
-            } else {
-                resultMessage.innerHTML = "❌ ลองใหม่อีกครั้ง!";
-                resultMessage.classList.add("text-red-500");
-            }
-        }
-
-        setupGame();
-    </script>
 </body>
 </html>

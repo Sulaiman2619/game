@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from rest_framework import viewsets
 from .models import Alphabet
 from .serializers import AlphabetSerializer
@@ -14,6 +14,14 @@ from django.core.files.base import ContentFile
 from transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 import traceback  # ใช้สำหรับ debug error
 from pydub import AudioSegment
+from .models import *
+from django.utils.timezone import now
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import authenticate, login
+import qrcode
+
+
 
 # Function to convert .webm to .wav
 def convert_webm_to_wav(webm_file_path):
@@ -30,12 +38,122 @@ class AlphabetViewSet(viewsets.ModelViewSet):
     serializer_class = AlphabetSerializer
 
 
+def register(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        email = request.POST['email']
+        password1 = request.POST['password1']
+        password2 = request.POST['password2']
+
+        if password1 != password2:
+            messages.error(request, "รหัสผ่านไม่ตรงกัน!")
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, "ชื่อผู้ใช้นี้ถูกใช้ไปแล้ว!")
+        elif User.objects.filter(email=email).exists():
+            messages.error(request, "อีเมลนี้ถูกใช้ไปแล้ว!")
+        else:
+            user = User.objects.create_user(username=username, email=email, password=password1)
+            user.save()
+
+            # Create a UserSubscription record for this user
+            subscription = UserSubscription(user=user)
+            subscription.register_trial()  # Automatically start a free trial for the user
+            subscription.save()
+
+            # Log the user in
+            login(request, user)
+            return redirect('home')  # Redirect to learning page after registration
+
+    return render(request, 'accounts/register.html')
+
+def user_login(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            return redirect('home')  # Redirect to the learning page after login
+        else:
+            messages.error(request, "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!")
+
+    return render(request, 'accounts/login.html')
+
 def index(request):
-    return render(request, 'index.html')
+    if request.user.is_authenticated:
+        user = request.user
+        try:
+            subscription = UserSubscription.objects.get(user=user)
+        except UserSubscription.DoesNotExist:
+            subscription = UserSubscription.objects.create(user=user)
 
-def learn_letters(request):
-    return render(request, 'learn.html')
+        # Check if user has trial or active subscription
+        if not subscription.has_active_trial() and not subscription.has_active_subscription():
+            show_trial_popup = True  # Show the trial popup if no active trial or subscription
+        else:
+            show_trial_popup = False
 
+        return render(request, 'index.html', {'show_trial_popup': show_trial_popup})
+
+    return render(request, 'index.html')  # For unauthenticated users, just render the normal index page
+
+    
+@login_required
+def payment(request):
+    user = request.user
+    # Assuming you have a one-to-one subscription model for the user
+    subscription, created = UserSubscription.objects.get_or_create(user=user)
+
+    if request.method == "POST":
+        # Simulate successful payment (this is where you would integrate actual payment gateway)
+        Payment.objects.create(user=user, amount=99.99, transaction_id="TX123456")
+        
+        # Set subscription to active
+        
+        # Update trial_end to 1 month from now (30 days)
+        subscription.trial_end = now() + timedelta(days=30)
+        subscription.save()
+
+        # Redirect to the 'learn' page after successful payment
+        return redirect("learn")
+
+    return render(request, "payment.html")
+
+# def learn_letters(request):
+#     return render(request, 'learn.html')
+
+@login_required
+def learn_view(request):
+    # Get or create the user's subscription status
+    user_subscription, created = UserSubscription.objects.get_or_create(user=request.user)
+
+    # Check if the user has an active subscription
+    if user_subscription.has_active_subscription():
+        # User has an active subscription, proceed to the learn page
+        return render(request, 'learn.html')
+
+    # If the user hasn't used the free trial
+    if not user_subscription.trial_used:
+        # Show the trial popup and allow the user to start the trial
+        if request.method == 'POST' and 'start_trial' in request.POST:
+            user_subscription.start_trial()  # Start the free trial
+            return redirect('learn')  # Redirect to the learn page after starting the trial
+        # Render the trial popup page
+        return render(request, 'payment/trial_popup.html')
+
+    # If the user has used the trial but hasn't paid for the subscription
+    if user_subscription.trial_used and (user_subscription.trial_end is None or user_subscription.trial_end < now().date()):
+        # If subscription has expired or not set, show the payment popup
+        if request.method == 'POST' and 'start_subscription' in request.POST:
+            user_subscription.start_subscription()  # Start the paid subscription
+            return redirect('learn')  # Redirect to the learn page after starting the subscription
+        
+        # Render the payment popup page if the trial is used and subscription expired
+        return render(request, 'payment/payment_popup.html')
+
+    # Default case: If no trial and no active subscription
+    return render(request, 'payment/payment_popup.html')
 
 def resample_audio(input_path, output_path, target_sample_rate=16000):
     """Resample the audio to the target sample rate."""

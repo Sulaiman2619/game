@@ -1,0 +1,47 @@
+{% load tailwind_tags %}
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สมัครสมาชิก</title>
+    {% tailwind_css %}
+</head>
+<body class="flex items-center justify-center h-screen bg-gray-100">
+    <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold text-center">สมัครสมาชิก</h2>
+
+        {% if messages %}
+            <div class="p-2 text-red-600 bg-red-100 rounded-md">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-gray-700">ชื่อผู้ใช้</label>
+                <input type="text" name="username" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-gray-700">อีเมล</label>
+                <input type="email" name="email" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-gray-700">รหัสผ่าน</label>
+                <input type="password" name="password1" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-gray-700">ยืนยันรหัสผ่าน</label>
+                <input type="password" name="password2" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="w-full py-2 text-white bg-green-500 rounded-lg hover:bg-green-700">สมัครสมาชิก</button>
+        </form>
+
+        <p class="text-center text-gray-600">มีบัญชีอยู่แล้ว? <a href="{% url 'login' %}" class="text-blue-500">เข้าสู่ระบบ</a></p>
+    </div>
+</body>
+</html>

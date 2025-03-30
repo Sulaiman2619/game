@@ -28,9 +28,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-NPM_BIN_PATH = "E:/npm.cmd"
+# NPM_BIN_PATH = "E:/npm.cmd"
 
-# NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'
+NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'
 # Application definition
 
 INSTALLED_APPS = [
@@ -156,3 +156,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = "/learn/"
+LOGOUT_REDIRECT_URL = ""
